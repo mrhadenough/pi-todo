@@ -1,0 +1,45 @@
+{
+  "name": "@mrhadenough/pi-todo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Compact, keyboard-navigable session task plans for the Pi coding agent",
+  "license": "MIT",
+  "author": "mrhadenough",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrhadenough/pi-todo.git"
+  },
+  "homepage": "https://github.com/mrhadenough/pi-todo#readme",
+  "bugs": { "url": "https://github.com/mrhadenough/pi-todo/issues" },
+  "keywords": ["pi-package", "pi-extension", "task-plan", "todo", "checklist"],
+  "engines": { "node": ">=22.19.0" },
+  "files": [
+    "index.ts",
+    "state.mjs",
+    "view.mjs",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md",
+    "PUBLISHING.md",
+    "CONTRIBUTING.md",
+    "docs/",
+    "scripts/",
+    "tests/"
+  ],
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "test:sdk": "node scripts/test-sdk.mjs",
+    "test:package": "node scripts/test-package.mjs",
+    "release:check": "node scripts/check-release.mjs",
+    "prepublishOnly": "npm run release:check && npm test && npm run test:sdk"
+  },
+  "publishConfig": { "access": "public", "registry": "https://registry.npmjs.org/" },
+  "pi": { "extensions": ["./index.ts"] },
+  "peerDependencies": {
+    "@earendil-works/pi-ai": "*",
+    "@earendil-works/pi-coding-agent": "*",
+    "@earendil-works/pi-tui": "*",
+    "typebox": "*"
+  }
+}
