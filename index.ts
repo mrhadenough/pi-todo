@@ -189,11 +189,12 @@ export default function taskPlan(pi: ExtensionAPI) {
   pi.registerTool({
     name: "task_plan",
     label: "Task plan",
-    description: "Session checklist. add: tasks with title and optional blockedBy IDs; update: changes by id; list; clear. Batch completion and next-task start. blocked needs a note. No project files.",
-    promptSnippet: "Track multi-step progress in the session",
+    description: "Session checklist: add tasks, update by ID, list, clear. blockedBy: prerequisites; blocked needs a note.",
+    promptSnippet: "Track multi-action work and follow-ups",
     promptGuidelines: [
-      "Use task_plan for multi-step work, not trivial requests. Keep one task in_progress; batch status handoffs.",
-      "Verify relevant results before marking completed. Keep failing/unfinished work open; task status is a report, not proof.",
+      "Use task_plan before multi-action work or explicit lists; skip trivial single requests/chat and respect opt-outs.",
+      "Use task_plan for follow-ups: add new work, refine by ID, preserve unfinished work; list if unsure. Preserve order and requested repetitions.",
+      "Use task_plan: at most one in_progress, set before work; completed only after verification. Keep failures open; reopen work invalidated by changes.",
     ],
     executionMode: "sequential",
     parameters,
