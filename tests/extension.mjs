@@ -121,13 +121,14 @@ assert.equal(a.tool.promptGuidelines.length, 3);
 for (const guideline of a.tool.promptGuidelines) assert.match(guideline, /\btask_plan\b/);
 for (const guideline of a.tool.promptGuidelines) assert.ok(planPrompt.rules.includes(guideline));
 for (const [intent, pattern] of [
-  ["planning for explicit and implicit lists", /before multi-action work or explicit lists/],
-  ["skip trivial and informational requests", /skip trivial single requests\/chat/],
-  ["new instructions during a run", /for follow-ups: add new work, refine by ID, preserve unfinished work/],
-  ["separate repeated steps", /Preserve order and requested repetitions/],
-  ["one active task", /at most one in_progress, set before work/],
-  ["honest completion", /completed only after verification.*Keep failures open/],
-  ["reopen invalidated work", /reopen work invalidated by changes/],
+  ["substantial work or requested checklists", /for substantial multi-step work.*unless a checklist is requested/],
+  ["avoid routine micromanagement", /skip routine edits and tight edit\/test loops/],
+  ["meaningful milestones", /Track outcomes, not tool calls/],
+  ["discovery before decomposition", /survey unclear scope, then split at natural boundaries/],
+  ["adapt without losing work", /Adapt to discoveries and follow-ups; preserve unfinished work/],
+  ["one active task", /at most one in_progress before work/],
+  ["honest completion", /complete only after verification.*Keep failures open/],
+  ["reopen invalidated work", /reopen invalidated work/],
   ["checklist opt-out", /respect opt-outs/],
 ]) assert.match(planPrompt.rules, pattern, intent);
 for (const scope of [{ selectedTools: [] }, { hiddenTools: [a.tool.name] }]) {
@@ -135,12 +136,12 @@ for (const scope of [{ selectedTools: [] }, { hiddenTools: [a.tool.name] }]) {
   for (const guideline of a.tool.promptGuidelines) assert.ok(!withoutPlan.rules.includes(guideline));
 }
 
-// Simulate model-issued calls for repeated actions and incremental user requests.
+// Simulate model-issued calls for meaningful milestones and incremental requests.
 // No parsing, execution, or status changes should happen merely on agent events.
 {
   const incremental = await fixture();
   await incremental.call({ action: "add", tasks: [
-    { title: "Inspect implementation" }, { title: "Run regression tests" }, { title: "Run regression tests" },
+    { title: "Survey account recovery design" }, { title: "Implement account recovery" }, { title: "Verify recovery flows" },
   ] });
   await incremental.call({ action: "update", changes: [{ id: 1, status: "in_progress" }] });
   incremental.idle(false);
@@ -149,14 +150,14 @@ for (const scope of [{ selectedTools: [] }, { hiddenTools: [a.tool.name] }]) {
     { id: 1, status: "completed" }, { id: 2, status: "in_progress" },
   ] });
   const original = incremental.state().tasks;
-  await incremental.call({ action: "add", tasks: [{ title: "Also check the install command" }] });
+  await incremental.call({ action: "add", tasks: [{ title: "Migrate legacy account data" }] });
   assert.deepEqual(incremental.state().tasks.slice(0, 3), original);
   assert.equal(incremental.state().tasks[3].id, 4);
-  await incremental.call({ action: "update", changes: [{ id: 3, title: "Run the full regression suite instead" }] });
+  await incremental.call({ action: "update", changes: [{ id: 3, title: "Verify recovery flows including legacy accounts" }] });
   assert.equal(incremental.state().tasks.length, 4);
   assert.deepEqual(incremental.state().tasks.map(task => task.status), ["completed", "in_progress", "pending", "pending"]);
   // A late follow-up can invalidate previously completed work: reopen, don't just retitle green.
-  await incremental.call({ action: "update", changes: [{ id: 1, title: "Inspect the revised implementation", status: "pending" }] });
+  await incremental.call({ action: "update", changes: [{ id: 1, title: "Survey revised account recovery requirements", status: "pending" }] });
   assert.equal(incremental.state().tasks.length, 4);
   assert.equal(incremental.state().tasks[0].status, "pending");
   await incremental.emit("agent_settled");

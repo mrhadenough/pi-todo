@@ -51,22 +51,23 @@ compatible.
 
 ## Use
 
-Ask Pi normally; you do not need to mention `task_plan`:
+For substantial work, ask Pi normally; you do not need to mention `task_plan`:
 
-> Inspect the issue, then implement the fix, also add tests.
+> Add account recovery, migrate existing account data, and cover the new flows with integration tests.
 
-> Do 1. update the README 2. fix the links 3. run the tests.
-
-The extension instructs the model to create a checklist **before** carrying out
-multi-action requests, including separately requested repetitions of an action.
-Explicit lists and actionable prose both qualify; isolated trivial requests do not.
+The extension instructs the model to track **meaningful milestones**, not every
+file edit, command, or test invocation. When scope is unclear, start with a brief
+survey, then split the work along natural boundaries and adapt the plan as facts
+emerge. Routine edits and tight edit/test loops do not need a checklist—even if
+the request contains several small actions or a numbered list. An explicit request
+to use a checklist still takes precedence.
 
 When adding work during a run, prompts such as “also check the install command”
-should append a task without clearing unfinished work. Refinements such as “check
-the full regression suite instead” should update the matching task, not duplicate
-it, and reopen completed work if the change invalidates its result. This applies
-when Pi delivers steering or queued follow-up messages to the model, not immediately
-while a message is waiting in the queue.
+should be folded into the current plan when relevant, not automatically create
+another task for every small instruction. Refine matching milestones, add genuinely
+new outcomes, and preserve unfinished work. Reopen completed work if new requirements
+invalidate it. Steering and queued follow-ups take effect when Pi delivers them
+to the model, not while they are still waiting in the queue.
 
 Recognition is model-driven, not a guaranteed text parser. Informational questions,
 quoted examples, and file/tool output should not become tasks. You can explicitly
