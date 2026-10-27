@@ -12,6 +12,7 @@ const [piDir, cwd] = process.argv.slice(2);
 const moduleUrl = path => pathToFileURL(resolve(piDir, path));
 const { loadExtensions } = await import(moduleUrl("dist/core/extensions/loader.js"));
 const { SessionManager } = await import(moduleUrl("dist/core/session-manager.js"));
+const { buildSystemPromptSections } = await import(moduleUrl("dist/core/system-prompt.js"));
 const { visibleWidth, matchesKey, ScrollView, Text, TuiAltScreen, TuiMainScreen } = await import(hostModuleUrl(piDir, "@earendil-works/pi-tui"));
 const extensionPath = resolve(import.meta.dirname, "../index.ts");
 const beforeFiles = readdirSync(cwd);
@@ -103,9 +104,66 @@ assert.equal(a.tool.executionMode, "sequential");
 assert.deepEqual(a.messages, []);
 const promptChars = a.tool.description.length + a.tool.promptSnippet.length +
   a.tool.promptGuidelines.join("\n").length + JSON.stringify(a.tool.parameters).length;
-assert.ok(promptChars <= 2600, `Prompt/schema budget exceeded: ${promptChars}`);
+assert.ok(promptChars <= 1450, `Prompt/schema budget exceeded: ${promptChars}`);
 console.log(`pi-todo declaration budget: ${promptChars} characters (not a tokenizer measurement).`);
 assert.equal(a.lines(80), undefined);
+
+// Check the instructions in Pi's actual prompt assembly, not just the tool object.
+// These are contract checks, not proof of any model's natural-language recognition.
+const promptOptions = {
+  cwd, selectedTools: [a.tool.name],
+  toolSnippets: { [a.tool.name]: a.tool.promptSnippet },
+  toolGuidelines: { [a.tool.name]: a.tool.promptGuidelines },
+};
+const planPrompt = buildSystemPromptSections(promptOptions);
+assert.ok(planPrompt.tools.includes(a.tool.promptSnippet));
+assert.equal(a.tool.promptGuidelines.length, 3);
+for (const guideline of a.tool.promptGuidelines) assert.match(guideline, /\btask_plan\b/);
+for (const guideline of a.tool.promptGuidelines) assert.ok(planPrompt.rules.includes(guideline));
+for (const [intent, pattern] of [
+  ["planning for explicit and implicit lists", /before multi-action work or explicit lists/],
+  ["skip trivial and informational requests", /skip trivial single requests\/chat/],
+  ["new instructions during a run", /for follow-ups: add new work, refine by ID, preserve unfinished work/],
+  ["separate repeated steps", /Preserve order and requested repetitions/],
+  ["one active task", /at most one in_progress, set before work/],
+  ["honest completion", /completed only after verification.*Keep failures open/],
+  ["reopen invalidated work", /reopen work invalidated by changes/],
+  ["checklist opt-out", /respect opt-outs/],
+]) assert.match(planPrompt.rules, pattern, intent);
+for (const scope of [{ selectedTools: [] }, { hiddenTools: [a.tool.name] }]) {
+  const withoutPlan = buildSystemPromptSections({ ...promptOptions, ...scope });
+  for (const guideline of a.tool.promptGuidelines) assert.ok(!withoutPlan.rules.includes(guideline));
+}
+
+// Simulate model-issued calls for repeated actions and incremental user requests.
+// No parsing, execution, or status changes should happen merely on agent events.
+{
+  const incremental = await fixture();
+  await incremental.call({ action: "add", tasks: [
+    { title: "Inspect implementation" }, { title: "Run regression tests" }, { title: "Run regression tests" },
+  ] });
+  await incremental.call({ action: "update", changes: [{ id: 1, status: "in_progress" }] });
+  incremental.idle(false);
+  await incremental.emit("agent_start");
+  await incremental.call({ action: "update", changes: [
+    { id: 1, status: "completed" }, { id: 2, status: "in_progress" },
+  ] });
+  const original = incremental.state().tasks;
+  await incremental.call({ action: "add", tasks: [{ title: "Also check the install command" }] });
+  assert.deepEqual(incremental.state().tasks.slice(0, 3), original);
+  assert.equal(incremental.state().tasks[3].id, 4);
+  await incremental.call({ action: "update", changes: [{ id: 3, title: "Run the full regression suite instead" }] });
+  assert.equal(incremental.state().tasks.length, 4);
+  assert.deepEqual(incremental.state().tasks.map(task => task.status), ["completed", "in_progress", "pending", "pending"]);
+  // A late follow-up can invalidate previously completed work: reopen, don't just retitle green.
+  await incremental.call({ action: "update", changes: [{ id: 1, title: "Inspect the revised implementation", status: "pending" }] });
+  assert.equal(incremental.state().tasks.length, 4);
+  assert.equal(incremental.state().tasks[0].status, "pending");
+  await incremental.emit("agent_settled");
+  assert.equal(incremental.state().tasks[1].status, "in_progress");
+  assert.deepEqual(incremental.messages, []);
+  await incremental.emit("session_shutdown");
+}
 
 await a.call({ action: "add", tasks: [{ title: "修复 bug" }, { title: "Verify", blockedBy: [1] }] });
 const initialLeaf = a.manager.getLeafId();

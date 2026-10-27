@@ -51,9 +51,27 @@ compatible.
 
 ## Use
 
-Ask Pi:
+Ask Pi normally; you do not need to mention `task_plan`:
 
-> Track this work with task_plan. Inspect the issue, implement the fix, and verify it before marking tasks complete.
+> Inspect the issue, then implement the fix, also add tests.
+
+> Do 1. update the README 2. fix the links 3. run the tests.
+
+The extension instructs the model to create a checklist **before** carrying out
+multi-action requests, including separately requested repetitions of an action.
+Explicit lists and actionable prose both qualify; isolated trivial requests do not.
+
+When adding work during a run, prompts such as “also check the install command”
+should append a task without clearing unfinished work. Refinements such as “check
+the full regression suite instead” should update the matching task, not duplicate
+it, and reopen completed work if the change invalidates its result. This applies
+when Pi delivers steering or queued follow-up messages to the model, not immediately
+while a message is waiting in the queue.
+
+Recognition is model-driven, not a guaranteed text parser. Informational questions,
+quoted examples, and file/tool output should not become tasks. You can explicitly
+ask not to use a checklist, or say “track this with task_plan” if the model misses
+an actionable list.
 
 ```text
 Tasks 3/10 reported complete · agent busy
